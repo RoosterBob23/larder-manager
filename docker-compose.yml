@@ -1,8 +1,8 @@
-
-
 services:
   larder-manager:
-    build: .
+    build:
+      context: https://github.com/RoosterBob23/larder-manager.git#main
+      dockerfile: Dockerfile
     container_name: larder-manager
     ports:
       - "3000:3000"

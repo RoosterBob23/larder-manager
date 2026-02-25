@@ -31,6 +31,9 @@ ENV NEXT_TELEMETRY_DISABLED 1
 # Install OpenSSL for Prisma
 RUN apk add --no-cache openssl
 
+# Create data directory and set permissions
+RUN mkdir -p /app/data && chown node:node /app/data
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
