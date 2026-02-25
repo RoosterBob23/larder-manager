@@ -1,0 +1,17 @@
+
+
+services:
+  larder-manager:
+    build: .
+    container_name: larder-manager
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/data/pantry.db
+      - NEXT_TELEMETRY_DISABLED=1
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_SUBJECT=${VAPID_SUBJECT}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
