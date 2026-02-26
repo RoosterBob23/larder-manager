@@ -14,11 +14,68 @@ if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)
     );
 }
 
+const https = require('https');
+const http = require('http');
+
+async function sendHANotifications(settings, payload) {
+    const { haUrl, haToken, haService } = settings;
+    if (!haUrl || !haToken || !haService) return;
+
+    const services = haService.split(',').map(s => s.trim()).filter(Boolean);
+    const data = JSON.parse(payload);
+
+    for (const service of services) {
+        try {
+            const url = new URL(`${haUrl.replace(/\/$/, '')}/api/services/notify/${service}`);
+            const protocol = url.protocol === 'https:' ? https : http;
+
+            const postData = JSON.stringify({
+                title: data.title,
+                message: data.body
+            });
+
+            console.log(`Sending HA notification to ${service}...`);
+
+            const req = protocol.request(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${haToken}`,
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(postData)
+                }
+            }, (res) => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    console.log(`HA notification sent to ${service}`);
+                } else {
+                    console.error(`HA notification failed for ${service}: ${res.statusCode}`);
+                }
+            });
+
+            req.on('error', (e) => {
+                console.error(`HA notification error for ${service}:`, e.message);
+            });
+
+            req.write(postData);
+            req.end();
+        } catch (err) {
+            console.error(`Failed to trigger HA notification for ${service}:`, err.message);
+        }
+    }
+}
+
 async function checkExpirations() {
     console.log('Checking expirations...');
     try {
-        const setting = await prisma.systemSetting.findUnique({ where: { key: 'daysBeforeAlert' } });
-        const daysBefore = setting ? parseInt(setting.value) : 3;
+        const settingsList = await prisma.systemSetting.findMany({
+            where: {
+                key: { in: ['daysBeforeAlert', 'haUrl', 'haToken', 'haService'] }
+            }
+        });
+
+        const config = {};
+        settingsList.forEach(s => config[s.key] = s.value);
+
+        const daysBefore = config.daysBeforeAlert ? parseInt(config.daysBeforeAlert) : 3;
 
         // Calculate target date range (items expiring EXACTLY in 'daysBefore' days)
         const targetDate = new Date();
@@ -43,33 +100,37 @@ async function checkExpirations() {
         if (items.length > 0) {
             console.log(`Found ${items.length} items expiring on ${startOfDay.toLocaleDateString()}`);
 
-            const subscriptions = await prisma.notificationSubscription.findMany();
-            if (subscriptions.length === 0) {
-                console.log("No subscriptions found.");
-                return;
-            }
-
             const payload = JSON.stringify({
                 title: 'Pantry Alert',
                 body: `${items.length} item(s) are expiring in ${daysBefore} days (${items[0].name}...)`,
                 url: '/'
             });
 
-            for (const sub of subscriptions) {
-                try {
-                    await webpush.sendNotification({
-                        endpoint: sub.endpoint,
-                        keys: JSON.parse(sub.keys)
-                    }, payload);
-                    console.log(`Sent notification to ${sub.endpoint.slice(0, 20)}...`);
-                } catch (err) {
-                    console.error('Failed to send for sub:', sub.id, err.statusCode);
-                    if (err.statusCode === 410 || err.statusCode === 404) {
-                        console.log('Deleting invalid subscription');
-                        await prisma.notificationSubscription.delete({ where: { id: sub.id } });
+            // Web Push Notifications
+            const subscriptions = await prisma.notificationSubscription.findMany();
+            if (subscriptions.length > 0) {
+                for (const sub of subscriptions) {
+                    try {
+                        await webpush.sendNotification({
+                            endpoint: sub.endpoint,
+                            keys: JSON.parse(sub.keys)
+                        }, payload);
+                        console.log(`Sent notification to ${sub.endpoint.slice(0, 20)}...`);
+                    } catch (err) {
+                        console.error('Failed to send for sub:', sub.id, err.statusCode);
+                        if (err.statusCode === 410 || err.statusCode === 404) {
+                            console.log('Deleting invalid subscription');
+                            await prisma.notificationSubscription.delete({ where: { id: sub.id } });
+                        }
                     }
                 }
+            } else {
+                console.log("No Web Push subscriptions found.");
             }
+
+            // Home Assistant Notifications
+            await sendHANotifications(config, payload);
+
         } else {
             console.log("No items found expiring exactly on this day.");
         }

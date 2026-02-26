@@ -20,6 +20,9 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function Settings() {
     const [days, setDays] = useState(3);
+    const [haUrl, setHaUrl] = useState('');
+    const [haToken, setHaToken] = useState('');
+    const [haService, setHaService] = useState('');
     const [loading, setLoading] = useState(false);
     const [subscribed, setSubscribed] = useState(false);
     const [permission, setPermission] = useState<NotificationPermission>('default');
@@ -28,6 +31,9 @@ export default function Settings() {
         // Fetch settings
         fetch('/api/settings').then(res => res.json()).then(data => {
             if (data.days) setDays(data.days);
+            if (data.haUrl) setHaUrl(data.haUrl);
+            if (data.haToken) setHaToken(data.haToken);
+            if (data.haService) setHaService(data.haService);
         });
 
         if ('serviceWorker' in navigator) {
@@ -47,7 +53,7 @@ export default function Settings() {
         setLoading(true);
         await fetch('/api/settings', {
             method: 'POST',
-            body: JSON.stringify({ days }),
+            body: JSON.stringify({ days, haUrl, haToken, haService }),
         });
         setLoading(false);
         alert('Settings saved');
@@ -106,6 +112,65 @@ export default function Settings() {
                 >
                     <Save size={16} /> Save Preference
                 </button>
+            </div>
+
+            <div className="bg-slate-900 rounded-lg p-4 mb-6 shadow-md">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
+                    <Bell size={20} className="text-orange-400" />
+                    Home Assistant Integration
+                </h2>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm text-slate-400 mb-1">
+                            Home Assistant URL
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="http://homeassistant.local:8123"
+                            value={haUrl}
+                            onChange={(e) => setHaUrl(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-100 text-sm"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-slate-400 mb-1">
+                            Long-Lived Access Token
+                        </label>
+                        <input
+                            type="password"
+                            placeholder="Paste token here"
+                            value={haToken}
+                            onChange={(e) => setHaToken(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-100 text-sm"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm text-slate-400 mb-1">
+                            Notification Services (comma-separated)
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="mobile_app_ultra_phone, mobile_app_susan"
+                            value={haService}
+                            onChange={(e) => setHaService(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-100 text-sm"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">
+                            Example: mobile_app_phone, persistent_notification
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={handleSaveDays}
+                        disabled={loading}
+                        className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                    >
+                        <Save size={16} /> {loading ? 'Saving...' : 'Save HA Settings'}
+                    </button>
+                </div>
             </div>
 
             <div className="bg-slate-900 rounded-lg p-4 mb-6 shadow-md">
