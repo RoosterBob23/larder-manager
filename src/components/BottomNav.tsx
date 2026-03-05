@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, PlusCircle, Settings } from 'lucide-react';
+import { Home, PlusCircle, Settings, ClipboardList } from 'lucide-react';
 
 export default function BottomNav() {
     const pathname = usePathname();
@@ -18,6 +18,14 @@ export default function BottomNav() {
                 >
                     <Home size={24} />
                     <span className="text-xs font-medium">Pantry</span>
+                </Link>
+
+                <Link
+                    href="/report"
+                    className={`flex flex-col items-center gap-1 transition-colors ${isActive('/report') ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'}`}
+                >
+                    <ClipboardList size={24} />
+                    <span className="text-xs font-medium">Report</span>
                 </Link>
 
                 <Link
