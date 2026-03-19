@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Calendar, Save, Camera } from 'lucide-react';
 import DateScanner from '@/components/DateScanner';
+import ExpirationDatePicker from '@/components/ExpirationDatePicker';
 
 export default function EditItem() {
     const router = useRouter();
@@ -135,14 +136,11 @@ export default function EditItem() {
                 {/* Expiry Date */}
                 <div>
                     <label className="block text-sm font-medium text-slate-400 mb-1">Expiration Date</label>
-                    <div className="flex gap-2">
-                        <div className="relative flex-1">
-                            <Calendar className="absolute left-3 top-3.5 text-slate-500" size={18} />
-                            <input
-                                type="date"
+                    <div className="flex gap-2 items-start">
+                        <div className="flex-1">
+                            <ExpirationDatePicker
                                 value={formData.expiryDate}
-                                onChange={e => setFormData({ ...formData, expiryDate: e.target.value })}
-                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 pl-10 text-slate-100 focus:ring-2 focus:ring-indigo-500 outline-none [color-scheme:dark]"
+                                onChange={(val) => setFormData({ ...formData, expiryDate: val })}
                             />
                         </div>
                         <button
