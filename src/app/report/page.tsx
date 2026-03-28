@@ -12,6 +12,7 @@ interface PantryItem {
     quantity: number;
     expiryDate: string | null;
     purchaseDate: string;
+    used: boolean;
 }
 
 export default function ExpirationReport() {
@@ -70,6 +71,30 @@ export default function ExpirationReport() {
 
     const handleEdit = (item: PantryItem) => {
         router.push(`/edit/${item.id}`);
+    };
+
+    const handleToggleUsed = async (id: number, used: boolean) => {
+        // Optimistic update
+        setItems(items.map(item => item.id === id ? { ...item, used } : item));
+        try {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+            
+            await fetch(`/api/items/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: item.name,
+                    quantity: item.quantity,
+                    expiryDate: item.expiryDate,
+                    purchaseDate: item.purchaseDate,
+                    used
+                })
+            });
+        } catch (error) {
+            console.error('Failed to toggle used', error);
+            fetchReport(days);
+        }
     };
 
     return (
@@ -142,6 +167,7 @@ export default function ExpirationReport() {
                             item={item}
                             onDelete={handleDelete}
                             onEdit={handleEdit}
+                            onToggleUsed={handleToggleUsed}
                         />
                     ))}
                 </div>
