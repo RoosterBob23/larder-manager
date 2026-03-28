@@ -44,6 +44,8 @@ next-env.d.ts
 
 # Data
 /data
+/prisma/data
+/prisma/migrations
 
 # Agent
 .gemini/

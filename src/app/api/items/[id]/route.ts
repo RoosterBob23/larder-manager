@@ -22,14 +22,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     try {
         const { id } = await params;
         const body = await request.json();
-        const { name, quantity, expiryDate, purchaseDate } = body;
+        const { name, quantity, expiryDate, purchaseDate, used } = body;
 
         const updatedItem = await prisma.pantryItem.update({
             where: { id: parseInt(id) },
             data: {
                 name,
-                quantity: quantity ? parseInt(quantity) : undefined,
-                expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+                used,
+                quantity: quantity !== undefined ? parseInt(quantity) : undefined,
+                expiryDate: expiryDate ? new Date(expiryDate) : (expiryDate === null ? null : undefined),
                 purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
             },
         });
