@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import PantryItemCard from '@/components/PantryItemCard';
+import { Search, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface PantryItem {
   id: number;
@@ -18,6 +19,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pantry' | 'used'>('pantry');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'expiryDate'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const router = useRouter();
 
   useEffect(() => {
@@ -111,9 +115,38 @@ export default function Home() {
     router.push(`/edit/${item.id}`);
   };
 
+  const handleSort = (field: 'name' | 'quantity' | 'expiryDate') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
   const pantryItems = items.filter(item => !item.used);
   const usedItems = items.filter(item => item.used);
   const displayItems = activeTab === 'pantry' ? pantryItems : usedItems;
+
+  const filteredItems = displayItems.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    let compareA: any = a[sortBy];
+    let compareB: any = b[sortBy];
+
+    if (sortBy === 'expiryDate') {
+      if (!compareA) return sortOrder === 'asc' ? 1 : -1;
+      if (!compareB) return sortOrder === 'asc' ? -1 : 1;
+      compareA = new Date(compareA).getTime();
+      compareB = new Date(compareB).getTime();
+    }
+
+    if (compareA < compareB) return sortOrder === 'asc' ? -1 : 1;
+    if (compareA > compareB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -126,7 +159,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="flex flex-col gap-4 mb-6">
+      <div className="flex flex-col gap-4 mb-4">
         <div className="flex bg-slate-900 p-1 rounded-lg w-fit">
           <button
             onClick={() => { setActiveTab('pantry'); setSelectedIds([]); }}
@@ -158,20 +191,63 @@ export default function Home() {
         )}
       </div>
 
+      <div className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-md pb-4 pt-2 -mx-6 px-6 mb-2">
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder={`Search ${activeTab === 'pantry' ? 'pantry' : 'used'}...`}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider mr-1">Sort by:</span>
+            {[
+              { id: 'name', label: 'Name' },
+              { id: 'quantity', label: 'Qty' },
+              { id: 'expiryDate', label: 'Expiry' }
+            ].map((btn) => (
+              <button
+                key={btn.id}
+                onClick={() => handleSort(btn.id as any)}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
+                  sortBy === btn.id
+                    ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-400'
+                    : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                }`}
+              >
+                {btn.label}
+                {sortBy === btn.id && (
+                  sortOrder === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex justify-center mt-20">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
-      ) : displayItems.length === 0 ? (
+      ) : sortedItems.length === 0 ? (
         <div className="text-center mt-20 text-slate-500 bg-slate-900/50 py-12 rounded-xl border border-dashed border-slate-800">
-          <p>Your {activeTab === 'pantry' ? 'pantry' : 'used list'} is empty.</p>
-          {activeTab === 'pantry' && (
+          <p>
+            {searchQuery 
+              ? `No items matching "${searchQuery}" found.` 
+              : `Your ${activeTab === 'pantry' ? 'pantry' : 'used list'} is empty.`}
+          </p>
+          {!searchQuery && activeTab === 'pantry' && (
             <p className="text-sm mt-2">Tap "Add Item" to get started.</p>
           )}
         </div>
       ) : (
         <div className="space-y-2">
-          {displayItems.map(item => (
+          {sortedItems.map(item => (
             <PantryItemCard
               key={item.id}
               item={item}

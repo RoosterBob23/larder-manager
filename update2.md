@@ -1,0 +1,2 @@
+- Add a search feature to the pantry and used items tabs
+- add the ability to sort the pantry and used items tabs by name, quantity, expiry date
