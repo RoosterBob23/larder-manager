@@ -26,8 +26,16 @@ export default function DateScanner({ onScan, onClose }: Props) {
 
     const startCamera = async () => {
         try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            let videoConstraints: MediaTrackConstraints = { facingMode: 'environment' };
+            if (videoDevices.length >= 2) {
+                videoConstraints = { deviceId: { exact: videoDevices[1].deviceId } };
+            }
+
             const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
+                video: videoConstraints,
                 audio: false,
             });
             setStream(mediaStream);

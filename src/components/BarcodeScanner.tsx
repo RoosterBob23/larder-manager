@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface Props {
     onScan: (decodedText: string) => void;
@@ -10,28 +10,46 @@ interface Props {
 
 export default function BarcodeScanner({ onScan, onClose }: Props) {
     useEffect(() => {
-        const scanner = new Html5QrcodeScanner(
-            "reader",
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-                aspectRatio: 1.0,
-            },
-      /* verbose= */ false
-        );
+        const scanner = new Html5Qrcode("reader");
+        let isStarted = false;
 
-        scanner.render(
-            (decodedText) => {
-                scanner.clear();
-                onScan(decodedText);
-            },
-            (error) => {
-                // console.warn(error);
+        const startScanner = async () => {
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                
+                let cameraConfig: any = { facingMode: "environment" };
+                if (devices && devices.length >= 2) {
+                    cameraConfig = devices[1].id;
+                }
+
+                await scanner.start(
+                    cameraConfig,
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0,
+                    },
+                    (decodedText) => {
+                        scanner.stop().then(() => {
+                            onScan(decodedText);
+                        }).catch(err => console.error("Failed to stop scanner", err));
+                    },
+                    (error) => {
+                        // console.warn(error);
+                    }
+                );
+                isStarted = true;
+            } catch (err) {
+                console.error("Failed to start scanner", err);
             }
-        );
+        };
+
+        startScanner();
 
         return () => {
-            scanner.clear().catch(err => console.log('Failed to clear scanner', err));
+            if (isStarted) {
+                scanner.stop().catch(err => console.error('Failed to clear scanner', err));
+            }
         };
     }, [onScan]);
 
