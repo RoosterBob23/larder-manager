@@ -16,23 +16,50 @@ export default function DateScanner({ onScan, onClose }: Props) {
     const [capturedImage, setCapturedImage] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
-        startCamera();
+        initDevices();
         return () => {
             stopCamera();
         };
     }, []);
 
-    const startCamera = async () => {
+    const initDevices = async () => {
         try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            
-            let videoConstraints: MediaTrackConstraints = { facingMode: 'environment' };
-            if (videoDevices.length >= 2) {
-                videoConstraints = { deviceId: { exact: videoDevices[1].deviceId } };
+            const allDevices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
+            setDevices(videoDevices);
+
+            if (videoDevices.length > 0) {
+                const savedId = localStorage.getItem('preferredCameraId');
+                let startIndex = 0;
+
+                if (savedId) {
+                    const foundIndex = videoDevices.findIndex(d => d.deviceId === savedId);
+                    if (foundIndex !== -1) startIndex = foundIndex;
+                }
+
+                setCurrentIndex(startIndex);
+                startCamera(videoDevices[startIndex].deviceId);
+            } else {
+                startCamera();
             }
+        } catch (err) {
+            console.error("Error listing devices:", err);
+            startCamera();
+        }
+    };
+
+    const startCamera = async (deviceId?: string) => {
+        // Stop any existing stream
+        stopCamera();
+
+        try {
+            const videoConstraints: MediaTrackConstraints = deviceId 
+                ? { deviceId: { exact: deviceId } } 
+                : { facingMode: 'environment' };
 
             const mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: videoConstraints,
@@ -41,6 +68,10 @@ export default function DateScanner({ onScan, onClose }: Props) {
             setStream(mediaStream);
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream;
+            }
+
+            if (deviceId) {
+                localStorage.setItem('preferredCameraId', deviceId);
             }
         } catch (err) {
             console.error("Error accessing camera:", err);
@@ -70,9 +101,16 @@ export default function DateScanner({ onScan, onClose }: Props) {
         }
     };
 
+    const switchCamera = () => {
+        if (devices.length < 2) return;
+        const nextIndex = (currentIndex + 1) % devices.length;
+        setCurrentIndex(nextIndex);
+        startCamera(devices[nextIndex].deviceId);
+    };
+
     const retake = () => {
         setCapturedImage(null);
-        startCamera();
+        startCamera(devices[currentIndex]?.deviceId);
     };
 
     const processImage = async () => {
@@ -93,7 +131,7 @@ export default function DateScanner({ onScan, onClose }: Props) {
             } else {
                 setError("Could not find a clear date. Please try again or enter manually.");
                 setCapturedImage(null);
-                startCamera();
+                startCamera(devices[currentIndex]?.deviceId);
             }
         } catch (err) {
             console.error("OCR Error:", err);
@@ -138,9 +176,20 @@ export default function DateScanner({ onScan, onClose }: Props) {
             <div className="relative w-full max-w-sm bg-slate-900 rounded-lg overflow-hidden shadow-2xl border border-slate-700">
                 <div className="p-4 flex justify-between items-center border-b border-slate-800">
                     <h2 className="text-white font-semibold">Scan Expiration Date</h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white">
-                        <X size={24} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {devices.length > 1 && !capturedImage && (
+                            <button 
+                                onClick={switchCamera} 
+                                className="text-slate-400 hover:text-indigo-400 transition-colors p-1"
+                                title="Switch Camera"
+                            >
+                                <RefreshCw size={20} />
+                            </button>
+                        )}
+                        <button onClick={onClose} className="text-slate-400 hover:text-white">
+                            <X size={24} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="relative aspect-square bg-black">

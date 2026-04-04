@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Bell, Save, Download } from 'lucide-react';
+import { Bell, Save, Download, Camera } from 'lucide-react';
 
 function urlBase64ToUint8Array(base64String: string) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -26,6 +26,8 @@ export default function Settings() {
     const [loading, setLoading] = useState(false);
     const [subscribed, setSubscribed] = useState(false);
     const [permission, setPermission] = useState<NotificationPermission>('default');
+    const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+    const [preferredCamera, setPreferredCamera] = useState('');
 
     useEffect(() => {
         // Fetch settings
@@ -47,7 +49,28 @@ export default function Settings() {
         }
 
         setPermission(Notification.permission);
+
+        // Fetch cameras
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices().then(devices => {
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                setCameras(videoDevices);
+                
+                const savedCamera = localStorage.getItem('preferredCameraId');
+                if (savedCamera) {
+                    setPreferredCamera(savedCamera);
+                } else if (videoDevices.length > 0) {
+                    // Default to first camera if nothing saved
+                    setPreferredCamera(videoDevices[0].deviceId);
+                }
+            });
+        }
     }, []);
+
+    const handleSaveCamera = () => {
+        localStorage.setItem('preferredCameraId', preferredCamera);
+        alert('Camera preference saved');
+    };
 
     const handleSaveDays = async () => {
         setLoading(true);
@@ -196,6 +219,42 @@ export default function Settings() {
                         Notifications are blocked by your browser. Please reset permissions in site settings.
                     </p>
                 )}
+            </div>
+
+            <div className="bg-slate-900 rounded-lg p-4 mb-6 shadow-md">
+                <h2 className="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
+                    <Camera size={20} className="text-indigo-400" />
+                    Camera Settings
+                </h2>
+
+                <div className="mb-4">
+                    <label className="block text-sm text-slate-400 mb-2">
+                        Default Scanner Camera
+                    </label>
+                    {cameras.length > 0 ? (
+                        <select
+                            value={preferredCamera}
+                            onChange={(e) => setPreferredCamera(e.target.value)}
+                            className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-slate-100 text-sm"
+                        >
+                            {cameras.map((camera, i) => (
+                                <option key={camera.deviceId} value={camera.deviceId}>
+                                    {camera.label || `Camera ${i + 1}`}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <p className="text-sm text-slate-500 italic">No cameras detected or permission not granted.</p>
+                    )}
+                </div>
+
+                <button
+                    onClick={handleSaveCamera}
+                    disabled={cameras.length === 0}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                    <Save size={16} /> Save Camera Preference
+                </button>
             </div>
 
             <div className="bg-slate-900 rounded-lg p-4 shadow-md">
